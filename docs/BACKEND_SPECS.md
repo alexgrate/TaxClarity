@@ -59,22 +59,25 @@ class UserProfile(models.Model):
 
     USER_TYPE_CHOICES = [
         ('salary_earner', 'Salary Earner'),
-        ('freelancer', 'Freelancer'),
+        ('freelancer', 'Freelancer / Self-Employed'),
         ('small_business_owner', 'Small Business Owner'),
     ]
 
+    # Updated income ranges based on NTA 2025 tax brackets
     INCOME_RANGE_CHOICES = [
-        ('below_400k', 'Below ₦400,000'),
-        ('400k_700k', '₦400,000 - ₦700,000'),
-        ('700k_1m', '₦700,000 - ₦1,000,000'),
-        ('1m_2m', '₦1,000,000 - ₦2,000,000'),
-        ('above_2m', 'Above ₦2,000,000'),
+        ('below_800k', 'Below ₦800,000 (Tax-Free)'),
+        ('800k_3m', '₦800,000 - ₦3,000,000'),
+        ('3m_12m', '₦3,000,000 - ₦12,000,000'),
+        ('12m_25m', '₦12,000,000 - ₦25,000,000'),
+        ('25m_50m', '₦25,000,000 - ₦50,000,000'),
+        ('above_50m', 'Above ₦50,000,000'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_type = models.CharField(max_length=30, choices=USER_TYPE_CHOICES)
     income_range = models.CharField(max_length=20, choices=INCOME_RANGE_CHOICES)
-    state = models.CharField(max_length=50)  # Nigerian state
+    state = models.CharField(max_length=50)  # Nigerian state - determines SIRS (e.g., LIRS for Lagos)
+    is_incorporated = models.BooleanField(default=False)  # For small business: sole prop vs company
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -471,209 +474,354 @@ Create a management command or run in Django shell:
 from App.models import TaxRule
 from datetime import date
 
-# ============ TAX RULES FOR 2026 REFORMS ============
+# ============================================================
+# TAX RULES BASED ON NIGERIA TAX ACT 2025 (NTA)
+# AND NIGERIA TAX ADMINISTRATION ACT 2025 (NTAA)
+# Effective: January 1, 2026
+# ============================================================
 
-# Personal Income Tax
+# Personal Income Tax (PIT) - Progressive Rates
+# Reference: NTA 2025 - applies to individuals
 TaxRule.objects.create(
     name="Personal Income Tax (PIT)",
-    description="Tax on personal income from employment, business, or investments.\nApplies to all income earners in Nigeria.\nRates range from 7% to 24% based on income brackets.\n2026 Reform: First ₦800,000 is now tax-free (previously ₦300,000).",
-    simplified_explanation="This is the main tax on your income. If you earn above ₦800,000 per year, you need to pay this tax. The more you earn, the higher percentage you pay. Good news: The 2026 reform increased the tax-free threshold!",
+    description="""Tax on personal income from employment, business, or investments.
+Progressive rates under NTA 2025:
+• ₦0 - ₦800,000: 0% (Tax-Free)
+• ₦800,001 - ₦3,000,000: 15%
+• ₦3,000,001 - ₦12,000,000: 18%
+• ₦12,000,001 - ₦25,000,000: 21%
+• ₦25,000,001 - ₦50,000,000: 23%
+• Above ₦50,000,000: 25%
+Deductions: Pension (up to 25% of salary), NHF, rent relief (20% up to ₦500,000).""",
+    simplified_explanation="Good news! The first ₦800,000 you earn yearly is completely tax-free. Above that, you pay 15-25% depending on how much you earn. You can reduce your tax by claiming deductions for pension, housing fund, and rent payments.",
     applies_to=["salary_earner", "freelancer", "small_business_owner"],
     min_income_threshold=800000,
-    rate_percentage=7.00,
+    rate_percentage=15.00,
     effective_date=date(2026, 1, 1),
 )
 
-# Value Added Tax
+# Pay As You Earn (PAYE) - For Salary Earners
 TaxRule.objects.create(
-    name="Value Added Tax (VAT)",
-    description="Tax on goods and services.\nApplies to businesses with annual turnover above ₦25 million.\nStandard rate is 7.5%.\nSome essential items are VAT-exempt.",
-    simplified_explanation="If your business sells goods or services and makes more than ₦25 million per year, you need to register for VAT and charge 7.5% on your sales.",
-    applies_to=["small_business_owner"],
-    min_income_threshold=25000000,
-    rate_percentage=7.50,
+    name="Pay As You Earn (PAYE)",
+    description="""Tax deducted from salary by employer.
+• Employer deducts monthly and remits to State IRS (e.g., LIRS for Lagos) by 10th of following month.
+• Uses same progressive PIT rates.
+• Employee receives net salary after deduction.
+• Employer provides annual tax deduction certificate.
+Reference: Section 14 NTAA 2025.""",
+    simplified_explanation="Your employer handles this for you! They deduct tax from your salary each month and send it to the tax office (like LIRS if you're in Lagos). Just verify your payslip shows correct deductions. You usually don't need to file separately unless you have other income.",
+    applies_to=["salary_earner"],
+    min_income_threshold=800000,
+    rate_percentage=15.00,
     effective_date=date(2026, 1, 1),
 )
 
-# Withholding Tax
+# Withholding Tax (WHT) - For Freelancers
 TaxRule.objects.create(
     name="Withholding Tax (WHT)",
-    description="Tax deducted at source from payments.\nApplies to freelancers and contractors.\nRates vary from 5% to 10% depending on service type.\nCan be used as credit against final tax.",
-    simplified_explanation="When clients pay you for services, they may deduct 5-10% as withholding tax and send it to the government. You can claim this as credit against your income tax.",
+    description="""Tax deducted at source from payments to freelancers/contractors.
+• Rates: 5-10% depending on service type.
+• Deducted by clients before payment.
+• Can be credited against final PIT liability.
+• Request WHT certificate from clients to claim credit.
+Reference: NTAA 2025.""",
+    simplified_explanation="When clients pay you for freelance work, they may deduct 5-10% as withholding tax before sending your payment. This isn't extra tax - you can use these deductions as credit when filing your annual tax return. Always ask clients for WHT certificates!",
     applies_to=["freelancer"],
     min_income_threshold=0,
     rate_percentage=5.00,
     effective_date=date(2026, 1, 1),
 )
 
-# Company Income Tax (for small business owners who registered companies)
+# Value Added Tax (VAT)
+TaxRule.objects.create(
+    name="Value Added Tax (VAT)",
+    description="""Tax on goods and services sold by businesses.
+• Rate: 7.5%
+• Applies ONLY if annual turnover exceeds ₦50 million.
+• Small businesses (≤ ₦50 million turnover) are EXEMPT.
+• If applicable, file monthly returns by 21st of following month.
+Reference: Section 22 NTAA 2025.""",
+    simplified_explanation="If your business makes more than ₦50 million per year, you must register for VAT, charge 7.5% on sales, and file monthly returns. But if you earn less than ₦50 million, you're completely exempt from VAT - no registration needed!",
+    applies_to=["small_business_owner", "freelancer"],
+    min_income_threshold=50000000,
+    rate_percentage=7.50,
+    effective_date=date(2026, 1, 1),
+)
+
+# Company Income Tax (CIT) - For Incorporated Businesses
 TaxRule.objects.create(
     name="Company Income Tax (CIT)",
-    description="Tax on company profits.\nSmall companies (turnover < ₦25m): 0% rate.\nMedium companies (₦25m-₦100m): 20% rate.\nLarge companies (> ₦100m): 30% rate.",
-    simplified_explanation="If you registered your business as a company, you pay tax on your profits. Small businesses with less than ₦25 million turnover pay 0% - that's great news for startups!",
+    description="""Tax on profits of incorporated companies.
+• Small Companies (turnover ≤ ₦50 million, assets ≤ ₦250 million): 0% CIT
+• Medium/Large Companies: 30% CIT + 4% Development Levy
+• Must file within 6 months of financial year end.
+• Owner still pays PIT on dividends/salary taken.
+Reference: NTA 2025, Section 11 NTAA.""",
+    simplified_explanation="Great news for small businesses! If your company makes less than ₦50 million and has assets under ₦250 million, you pay 0% company tax. Larger companies pay 30%. Note: Even with 0% CIT, you personally still pay income tax on any salary or dividends you take.",
     applies_to=["small_business_owner"],
-    min_income_threshold=25000000,
-    rate_percentage=20.00,
+    min_income_threshold=50000000,
+    rate_percentage=0.00,
     effective_date=date(2026, 1, 1),
 )
 
-# PAYE (Pay As You Earn)
+# Self-Assessment Requirement
 TaxRule.objects.create(
-    name="Pay As You Earn (PAYE)",
-    description="Tax deducted from salary by employer.\nEmployer remits to tax authority monthly.\nApplies to all formal employment.\nEmployee receives net salary after deduction.",
-    simplified_explanation="If you work for a company, your employer automatically deducts tax from your salary and sends it to the government. You don't need to do anything - it's already handled!",
-    applies_to=["salary_earner"],
-    min_income_threshold=800000,
-    rate_percentage=7.00,
+    name="Self-Assessment Filing",
+    description="""All taxpayers must self-assess their tax liability.
+• Salary earners with only PAYE income may not need to file.
+• Self-employed/freelancers MUST file annual returns.
+• Deadline: March 31 annually.
+• File via State IRS portal (e.g., etax.lirs.net for Lagos).
+Reference: Section 34 NTAA 2025, Section 13 NTAA.""",
+    simplified_explanation="If you're self-employed or have income beyond your salary, you need to file your own tax return by March 31st each year. Calculate your income, subtract expenses and deductions, then pay any tax owed. Use your state's online portal (like LIRS e-Tax for Lagos residents).",
+    applies_to=["freelancer", "small_business_owner"],
+    min_income_threshold=0,
+    rate_percentage=0.00,
     effective_date=date(2026, 1, 1),
 )
 
-# Tertiary Education Tax
-TaxRule.objects.create(
-    name="Tertiary Education Tax (TET)",
-    description="Tax to fund tertiary education.\nApplies to companies only.\nRate: 2.5% of assessable profits.\nDoes not apply to individuals.",
-    simplified_explanation="This is a 2.5% tax on company profits that goes to fund universities. Only applies if you registered your business as a company.",
-    applies_to=["small_business_owner"],
-    min_income_threshold=25000000,
-    rate_percentage=2.50,
-    effective_date=date(2026, 1, 1),
-)
+print("✅ Tax rules created successfully based on NTA/NTAA 2025!")
+```
 
-print("✅ Tax rules created successfully!")
+---
+
+## Tax Calculation Helper
+
+Add this utility function to help calculate tax:
+
+```python
+# utils.py - Tax Calculator based on NTA 2025
+
+def calculate_pit(annual_income: float, deductions: float = 0) -> dict:
+    """
+    Calculate Personal Income Tax based on NTA 2025 progressive rates.
+    
+    Args:
+        annual_income: Gross annual income in Naira
+        deductions: Total deductions (pension, NHF, rent relief, etc.)
+    
+    Returns:
+        dict with tax breakdown
+    """
+    taxable_income = max(0, annual_income - deductions)
+    
+    # NTA 2025 Tax Brackets
+    brackets = [
+        (800000, 0.00),      # First ₦800,000 at 0%
+        (2200000, 0.15),     # ₦800,001 - ₦3,000,000 at 15%
+        (9000000, 0.18),     # ₦3,000,001 - ₦12,000,000 at 18%
+        (13000000, 0.21),    # ₦12,000,001 - ₦25,000,000 at 21%
+        (25000000, 0.23),    # ₦25,000,001 - ₦50,000,000 at 23%
+        (float('inf'), 0.25) # Above ₦50,000,000 at 25%
+    ]
+    
+    tax = 0
+    remaining = taxable_income
+    breakdown = []
+    cumulative = 0
+    
+    for bracket_size, rate in brackets:
+        if remaining <= 0:
+            break
+        taxable_in_bracket = min(remaining, bracket_size)
+        tax_in_bracket = taxable_in_bracket * rate
+        tax += tax_in_bracket
+        
+        if taxable_in_bracket > 0:
+            breakdown.append({
+                'bracket': f'₦{cumulative:,.0f} - ₦{cumulative + bracket_size:,.0f}',
+                'rate': f'{rate * 100:.0f}%',
+                'amount_taxed': taxable_in_bracket,
+                'tax': tax_in_bracket
+            })
+        
+        remaining -= bracket_size
+        cumulative += bracket_size
+    
+    return {
+        'gross_income': annual_income,
+        'deductions': deductions,
+        'taxable_income': taxable_income,
+        'total_tax': tax,
+        'effective_rate': (tax / annual_income * 100) if annual_income > 0 else 0,
+        'breakdown': breakdown
+    }
+
+# Example usage:
+# calculate_pit(5000000, 500000)  # ₦5M income with ₦500K deductions
 ```
 
 ---
 
 ## Enhanced Checklist Items
 
-Update the `_create_default_checklist` method in views.py with more detailed items:
+Update the `_create_default_checklist` method in views.py with accurate NTA/NTAA 2025 requirements:
 
 ```python
 def _create_default_checklist(self, profile):
-    """Generate comprehensive checklist based on user type"""
-    
+    """
+    Generate comprehensive checklist based on user type.
+    Based on Nigeria Tax Act 2025 and Nigeria Tax Administration Act 2025.
+    """
+
     # Common items for everyone
     common_items = [
         {
-            "title": "Get your Tax Identification Number (TIN)",
-            "description": "Visit the nearest FIRS office or apply online at taxpromax.firs.gov.ng",
+            "title": "Register for Tax ID (TIN)",
+            "description": "Visit taxid.jrb.gov.ng - you need BVN, NIN, date of birth, and proof of address. Penalty for non-registration: ₦50,000 (Section 100 NTAA).",
             "priority": 1,
             "order": 1
         },
         {
-            "title": "Gather all income documents",
-            "description": "Collect payslips, invoices, bank statements from Jan-Dec 2025",
+            "title": "Gather all income documents for 2025",
+            "description": "Collect payslips, invoices, bank statements, and payment receipts from January to December 2025.",
             "priority": 1,
             "order": 2
         },
         {
             "title": "Calculate your total annual income",
-            "description": "Add up all income sources: salary, freelance, investments, etc.",
+            "description": "Add up all income sources. Remember: first ₦800,000 is tax-free under NTA 2025!",
             "priority": 2,
             "order": 3
         },
         {
-            "title": "Identify your tax-deductible expenses",
-            "description": "Pension contributions, NHF, life insurance premiums can reduce your tax",
+            "title": "Identify allowable deductions",
+            "description": "Pension (up to 25% of salary), NHF contributions, rent relief (20% of rent up to ₦500,000), life insurance premiums.",
             "priority": 2,
             "order": 4
         },
         {
-            "title": "Check the 2026 tax-free threshold",
-            "description": "First ₦800,000 is now exempt - calculate if you owe any tax",
-            "priority": 2,
+            "title": "Keep records for 6 years",
+            "description": "Maintain all tax-related documents for 6 years as required by Section 31 NTAA. Update any changes within 30 days (Section 9).",
+            "priority": 3,
             "order": 5
         },
     ]
-    
-    # Salary earner specific
+
+    # Salary earner specific - PAYE handled by employer
     salary_items = [
         {
-            "title": "Confirm PAYE deductions with employer",
-            "description": "Request your annual tax deduction certificate from HR",
+            "title": "Verify monthly PAYE deductions on payslip",
+            "description": "Check that your employer is correctly deducting tax. They must remit to your State IRS (e.g., LIRS) by the 10th of each month (Section 14 NTAA).",
             "priority": 1,
             "order": 6
         },
         {
-            "title": "File annual tax returns (if required)",
-            "description": "Due by March 31st if you have additional income sources",
+            "title": "Request annual tax deduction certificate",
+            "description": "Get this from HR/Payroll to confirm total tax paid. Useful if you need a Tax Clearance Certificate.",
             "priority": 2,
             "order": 7
         },
+        {
+            "title": "File annual return if you have other income",
+            "description": "If you have rental income, investments, or side business, file Form A by March 31 via your State IRS portal (e.g., etax.lirs.net for Lagos).",
+            "priority": 2,
+            "order": 8
+        },
+        {
+            "title": "Apply for Tax Clearance Certificate (TCC)",
+            "description": "Required for certain transactions (Section 72 NTAA). Apply via your State IRS portal after ensuring all taxes are paid.",
+            "priority": 3,
+            "order": 9
+        },
     ]
-    
-    # Freelancer specific
+
+    # Freelancer / Self-employed specific
     freelancer_items = [
         {
-            "title": "Track all business expenses",
-            "description": "Keep receipts for equipment, internet, transport, workspace costs",
+            "title": "Track all business expenses with receipts",
+            "description": "Equipment, data/internet, marketing, transport, workspace costs - all deductible from your income before tax calculation.",
             "priority": 1,
             "order": 6
         },
         {
-            "title": "Set aside money for taxes",
-            "description": "Save 10-15% of each payment for tax obligations",
+            "title": "Set aside 15-20% of each payment for taxes",
+            "description": "Based on NTA 2025 rates, save money for your tax bill. Better to have extra than fall short!",
             "priority": 1,
             "order": 7
         },
         {
-            "title": "Collect WHT certificates from clients",
-            "description": "Request withholding tax certificates to claim credits",
-            "priority": 2,
-            "order": 8
-        },
-        {
-            "title": "File self-assessment tax return",
-            "description": "Due by March 31st - use Form A for individuals",
-            "priority": 1,
-            "order": 9
-        },
-    ]
-    
-    # Small business owner specific
-    business_items = [
-        {
-            "title": "Register your business for tax",
-            "description": "Register with FIRS if not already done",
-            "priority": 1,
-            "order": 6
-        },
-        {
-            "title": "Check if you need VAT registration",
-            "description": "Required if annual turnover exceeds ₦25 million",
-            "priority": 1,
-            "order": 7
-        },
-        {
-            "title": "Set up proper bookkeeping",
-            "description": "Use accounting software to track income and expenses",
+            "title": "Collect WHT certificates from all clients",
+            "description": "When clients deduct 5-10% withholding tax, request the certificate. You can credit this against your final tax bill.",
             "priority": 1,
             "order": 8
         },
         {
-            "title": "File monthly VAT returns (if applicable)",
-            "description": "Due by 21st of following month",
+            "title": "Convert foreign income to Naira",
+            "description": "If paid in USD/GBP, convert to Naira for tax purposes. Keep records of exchange rates used.",
             "priority": 2,
             "order": 9
         },
         {
-            "title": "File annual company tax return",
-            "description": "Due within 6 months of financial year end",
+            "title": "File self-assessment return (Form A) by March 31",
+            "description": "Access etax.lirs.net (Lagos) or your State IRS portal. Self-assess per Section 34 NTAA. Late filing: ₦100,000 + ₦10,000/month (Section 101).",
             "priority": 1,
             "order": 10
         },
+        {
+            "title": "Check if VAT registration required",
+            "description": "Only if annual turnover exceeds ₦50 million. Below this, you're exempt (NTA 2025).",
+            "priority": 2,
+            "order": 11
+        },
     ]
-    
+
+    # Small business owner specific
+    business_items = [
+        {
+            "title": "Determine your business structure for tax",
+            "description": "Sole proprietorship/partnership = PIT (personal income tax). Registered company = CIT (company income tax).",
+            "priority": 1,
+            "order": 6
+        },
+        {
+            "title": "Register business with tax authority",
+            "description": "Companies register with NRS (Nigeria Revenue Service). Sole proprietors register with State IRS. Get Tax ID at taxid.jrb.gov.ng.",
+            "priority": 1,
+            "order": 7
+        },
+        {
+            "title": "Check if you qualify as 'Small Company' (0% CIT)",
+            "description": "If incorporated and turnover ≤ ₦50 million + fixed assets ≤ ₦250 million, you pay 0% company tax under NTA 2025!",
+            "priority": 1,
+            "order": 8
+        },
+        {
+            "title": "Set up proper bookkeeping",
+            "description": "Keep financial records, invoices, receipts. Needed for tax returns and potential audits (Section 64 NTAA).",
+            "priority": 1,
+            "order": 9
+        },
+        {
+            "title": "Check VAT registration requirement",
+            "description": "If turnover > ₦50 million, register for VAT and charge 7.5% on sales. File monthly by 21st. Below ₦50M = exempt.",
+            "priority": 1,
+            "order": 10
+        },
+        {
+            "title": "File annual tax return",
+            "description": "PIT: March 31 deadline. CIT: Within 6 months of financial year end (Section 11 NTAA). Late CIT filing: ₦10 million + daily penalties (Section 128).",
+            "priority": 1,
+            "order": 11
+        },
+        {
+            "title": "Pay personal tax on salary/dividends taken",
+            "description": "Even with 0% CIT, you personally pay PIT on money you take from the business as salary or dividends.",
+            "priority": 2,
+            "order": 12
+        },
+    ]
+
     # Build checklist based on user type
     checklist = common_items.copy()
-    
+
     if profile.user_type == 'salary_earner':
         checklist.extend(salary_items)
     elif profile.user_type == 'freelancer':
         checklist.extend(freelancer_items)
     elif profile.user_type == 'small_business_owner':
         checklist.extend(business_items)
-    
+
     # Create all items in database
     for item in checklist:
         ChecklistItem.objects.create(user_profile=profile, **item)
@@ -681,16 +829,38 @@ def _create_default_checklist(self, profile):
 
 ---
 
-## Key Tax Deadlines (2026)
+## Key Tax Deadlines (NTA/NTAA 2025)
 
-Add this data for reminders:
+| Deadline | Description | Applies To | Reference |
+|----------|-------------|------------|-----------|
+| **10th of each month** | Employer remits PAYE to State IRS | Employers | Section 14 NTAA |
+| **21st of each month** | VAT returns due | VAT-registered (>₦50M) | Section 22 NTAA |
+| **March 31** | Individual PIT filing deadline | All individuals | Section 13 NTAA |
+| **6 months after year-end** | Company Income Tax return | Companies | Section 11 NTAA |
+| **30 days** | Update any profile changes | Everyone | Section 9 NTAA |
 
-| Deadline | Description | Applies To |
-|----------|-------------|------------|
-| January 31 | Employer submits annual PAYE returns | Salary Earners |
-| March 31 | Individual self-assessment filing deadline | Freelancers, Business Owners |
-| Monthly 21st | VAT returns due | VAT-registered Businesses |
-| 6 months after year-end | Company tax return | Registered Companies |
+---
+
+## Penalties Reference (NTAA 2025)
+
+| Violation | Penalty | Section |
+|-----------|---------|---------|
+| Failure to register for Tax ID | ₦50,000 | Section 100 |
+| Late filing of return | ₦100,000 + ₦10,000/month | Section 101 |
+| Employer non-deduction of PAYE | 40% of amount | Section 105 |
+| Non-remittance of tax | 10% + interest | Section 107 |
+| Late CIT filing | ₦10 million + daily penalty | Section 128 |
+| General non-compliance | ₦1 million + imprisonment | Section 127 |
+
+---
+
+## Key Resources & Portals
+
+| Portal | URL | Purpose |
+|--------|-----|---------|
+| Tax ID Registration | taxid.jrb.gov.ng | Get your TIN |
+| Lagos IRS (LIRS) | etax.lirs.net | File PIT for Lagos residents |
+| NRS (formerly FIRS) | firs.gov.ng | Company taxes, NRS portal |
 
 ---
 
@@ -699,15 +869,15 @@ Add this data for reminders:
 After running migrations and seeding data:
 
 ```bash
-# Create profile
+# Create profile (updated income ranges)
 curl -X POST http://localhost:8000/api/profile/create/ \
   -H "Content-Type: application/json" \
-  -d '{"user_type": "freelancer", "income_range": "700k_1m", "state": "Lagos"}'
+  -d '{"user_type": "freelancer", "income_range": "3m_12m", "state": "Lagos"}'
 
 # Check taxes
 curl -X POST http://localhost:8000/api/tax/check/ \
   -H "Content-Type: application/json" \
-  -d '{"user_type": "freelancer", "income_range": "700k_1m", "state": "Lagos"}'
+  -d '{"user_type": "freelancer", "income_range": "3m_12m", "state": "Lagos"}'
 
 # Get checklist
 curl "http://localhost:8000/api/checklist/?user_id=<user-uuid>"
@@ -737,5 +907,7 @@ python manage.py runserver
 ```
 
 ---
+
+*This document is based on the Nigeria Tax Act 2025 and Nigeria Tax Administration Act 2025, effective January 1, 2026.*
 
 *This document should be shared with your backend collaborator*
