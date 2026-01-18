@@ -1,10 +1,10 @@
-import apiClient from './apiClient';
-import { ENDPOINTS } from './config';
+import apiClient from "./apiClient";
+import { ENDPOINTS } from "./config";
 
 // Types for API responses - Based on PRD requirements
 export interface UserProfile {
   id?: string;
-  user_type: 'salary_earner' | 'freelancer' | 'small_business_owner';
+  user_type: "salary_earner" | "freelancer" | "small_business_owner";
   income_range: string;
   state: string;
   created_at?: string;
@@ -35,7 +35,7 @@ export interface ChecklistItem {
 // API Service functions - Matching PRD endpoints
 export const taxClarityApi = {
   // ============ USER PROFILE (PRD: /api/profile/...) ============
-  
+
   /**
    * Create user tax profile
    * PRD: POST /api/profile/create
@@ -100,10 +100,16 @@ export const taxClarityApi = {
   /**
    * Update checklist item status
    */
-  updateChecklistItem: async (itemId: string, completed: boolean): Promise<ChecklistItem> => {
-    const response = await apiClient.patch(`${ENDPOINTS.updateChecklist}/${itemId}`, {
-      completed,
-    });
+  updateChecklistItem: async (
+    itemId: string,
+    completed: boolean,
+  ): Promise<ChecklistItem> => {
+    const response = await apiClient.patch(
+      `${ENDPOINTS.updateChecklist}/${itemId}`,
+      {
+        completed,
+      },
+    );
     return response.data;
   },
 
@@ -112,7 +118,10 @@ export const taxClarityApi = {
   /**
    * Create a reminder
    */
-  createReminder: async (reminder: { title: string; date: string }): Promise<any> => {
+  createReminder: async (reminder: {
+    title: string;
+    date: string;
+  }): Promise<any> => {
     const response = await apiClient.post(ENDPOINTS.reminders, reminder);
     return response.data;
   },

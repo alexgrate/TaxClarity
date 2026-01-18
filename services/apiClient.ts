@@ -1,13 +1,13 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from './config';
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_BASE_URL } from "./config";
 
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -15,18 +15,18 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      const token = await AsyncStorage.getItem("authToken");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.error('Error getting auth token:', error);
+      console.error("Error getting auth token:", error);
     }
     return config;
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor - Handle errors globally
@@ -38,28 +38,28 @@ apiClient.interceptors.response.use(
       switch (error.response.status) {
         case 401:
           // Unauthorized - clear token and redirect to login
-          AsyncStorage.removeItem('authToken');
+          AsyncStorage.removeItem("authToken");
           break;
         case 403:
-          console.error('Forbidden access');
+          console.error("Forbidden access");
           break;
         case 404:
-          console.error('Resource not found');
+          console.error("Resource not found");
           break;
         case 500:
-          console.error('Server error');
+          console.error("Server error");
           break;
         default:
-          console.error('API Error:', error.response.data);
+          console.error("API Error:", error.response.data);
       }
     } else if (error.request) {
       // Request made but no response received
-      console.error('Network error - no response received');
+      console.error("Network error - no response received");
     } else {
-      console.error('Error setting up request:', error.message);
+      console.error("Error setting up request:", error.message);
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;

@@ -56,13 +56,13 @@ import uuid
 
 class UserProfile(models.Model):
     """User tax profile - stores user classification for personalized tax info"""
-    
+
     USER_TYPE_CHOICES = [
         ('salary_earner', 'Salary Earner'),
         ('freelancer', 'Freelancer'),
         ('small_business_owner', 'Small Business Owner'),
     ]
-    
+
     INCOME_RANGE_CHOICES = [
         ('below_400k', 'Below ₦400,000'),
         ('400k_700k', '₦400,000 - ₦700,000'),
@@ -70,21 +70,21 @@ class UserProfile(models.Model):
         ('1m_2m', '₦1,000,000 - ₦2,000,000'),
         ('above_2m', 'Above ₦2,000,000'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_type = models.CharField(max_length=30, choices=USER_TYPE_CHOICES)
     income_range = models.CharField(max_length=20, choices=INCOME_RANGE_CHOICES)
     state = models.CharField(max_length=50)  # Nigerian state
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def __str__(self):
         return f"{self.user_type} - {self.state}"
 
 
 class TaxRule(models.Model):
     """Tax rules for 2026 reforms"""
-    
+
     name = models.CharField(max_length=100)  # e.g., "Personal Income Tax"
     description = models.TextField()
     simplified_explanation = models.TextField()  # Plain language version
@@ -93,20 +93,20 @@ class TaxRule(models.Model):
     rate_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     effective_date = models.DateField()
     is_active = models.BooleanField(default=True)
-    
+
     def __str__(self):
         return self.name
 
 
 class ChecklistItem(models.Model):
     """Compliance checklist items"""
-    
+
     PRIORITY_CHOICES = [
         (1, 'High'),
         (2, 'Medium'),
         (3, 'Low'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='checklist_items')
     title = models.CharField(max_length=200)
@@ -116,17 +116,17 @@ class ChecklistItem(models.Model):
     priority = models.IntegerField(choices=PRIORITY_CHOICES, default=2)
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         ordering = ['order', 'priority']
-    
+
     def __str__(self):
         return self.title
 
 
 class Reminder(models.Model):
     """User reminders for tax deadlines"""
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reminders')
     title = models.CharField(max_length=200)
@@ -134,10 +134,10 @@ class Reminder(models.Model):
     reminder_date = models.DateTimeField()
     is_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         ordering = ['reminder_date']
-    
+
     def __str__(self):
         return f"{self.title} - {self.reminder_date}"
 ```
@@ -161,8 +161,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class TaxRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaxRule
-        fields = ['id', 'name', 'description', 'simplified_explanation', 
-                  'applies_to', 'min_income_threshold', 'rate_percentage', 
+        fields = ['id', 'name', 'description', 'simplified_explanation',
+                  'applies_to', 'min_income_threshold', 'rate_percentage',
                   'effective_date', 'is_active']
 
 
@@ -217,7 +217,7 @@ from .serializers import (
 
 class CreateProfileView(APIView):
     """POST /api/profile/create/"""
-    
+
     def post(self, request):
         serializer = UserProfileSerializer(data=request.data)
         if serializer.is_valid():
@@ -226,7 +226,7 @@ class CreateProfileView(APIView):
             self._create_default_checklist(profile)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     def _create_default_checklist(self, profile):
         """Generate default checklist based on user type"""
         checklist_items = [
@@ -236,26 +236,26 @@ class CreateProfileView(APIView):
             {"title": "Identify applicable deductions", "priority": 2, "order": 4},
             {"title": "Set filing deadline reminder", "priority": 2, "order": 5},
         ]
-        
+
         # Add user-type specific items
         if profile.user_type == 'freelancer':
             checklist_items.append({"title": "Track business expenses", "priority": 1, "order": 6})
         elif profile.user_type == 'small_business_owner':
             checklist_items.append({"title": "Register for VAT (if applicable)", "priority": 1, "order": 6})
             checklist_items.append({"title": "Set up business accounting", "priority": 2, "order": 7})
-        
+
         for item in checklist_items:
             ChecklistItem.objects.create(user_profile=profile, **item)
 
 
 class ProfileDetailView(APIView):
     """GET/PUT /api/profile/<user_id>/"""
-    
+
     def get(self, request, user_id):
         profile = get_object_or_404(UserProfile, id=user_id)
         serializer = UserProfileSerializer(profile)
         return Response(serializer.data)
-    
+
     def put(self, request, user_id):
         profile = get_object_or_404(UserProfile, id=user_id)
         serializer = UserProfileSerializer(profile, data=request.data, partial=True)
@@ -269,21 +269,21 @@ class ProfileDetailView(APIView):
 
 class TaxCheckView(APIView):
     """POST /api/tax/check/"""
-    
+
     def post(self, request):
         serializer = TaxCheckRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         user_type = serializer.validated_data['user_type']
         income_range = serializer.validated_data['income_range']
-        
+
         # Get applicable tax rules
         applicable_rules = TaxRule.objects.filter(
             is_active=True,
             applies_to__contains=user_type
         )
-        
+
         # Convert income range to threshold check
         income_thresholds = {
             'below_400k': 400000,
@@ -293,7 +293,7 @@ class TaxCheckView(APIView):
             'above_2m': 5000000,
         }
         user_income = income_thresholds.get(income_range, 0)
-        
+
         results = []
         for rule in applicable_rules:
             applicable = user_income >= rule.min_income_threshold
@@ -303,16 +303,16 @@ class TaxCheckView(APIView):
                 'description': rule.simplified_explanation if applicable else f"Not applicable - income below ₦{rule.min_income_threshold:,.0f} threshold",
                 'rate': float(rule.rate_percentage) if rule.rate_percentage else None,
             })
-        
+
         return Response(results)
 
 
 class TaxExplanationView(APIView):
     """GET /api/tax/explanation/"""
-    
+
     def get(self, request):
         tax_type = request.query_params.get('tax_type', None)
-        
+
         if tax_type:
             rule = get_object_or_404(TaxRule, name__iexact=tax_type, is_active=True)
             return Response({
@@ -321,7 +321,7 @@ class TaxExplanationView(APIView):
                 'details': rule.description.split('\n'),
                 'rate': float(rule.rate_percentage) if rule.rate_percentage else None,
             })
-        
+
         # Return all active rules
         rules = TaxRule.objects.filter(is_active=True)
         explanations = []
@@ -332,13 +332,13 @@ class TaxExplanationView(APIView):
                 'details': rule.description.split('\n'),
                 'rate': float(rule.rate_percentage) if rule.rate_percentage else None,
             })
-        
+
         return Response(explanations)
 
 
 class TaxRulesView(APIView):
     """GET /api/tax/rules/"""
-    
+
     def get(self, request):
         rules = TaxRule.objects.filter(is_active=True)
         serializer = TaxRuleSerializer(rules, many=True)
@@ -349,7 +349,7 @@ class TaxRulesView(APIView):
 
 class ChecklistView(APIView):
     """GET /api/checklist/"""
-    
+
     def get(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
@@ -357,7 +357,7 @@ class ChecklistView(APIView):
                 {'error': 'user_id query parameter is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         profile = get_object_or_404(UserProfile, id=user_id)
         items = profile.checklist_items.all()
         serializer = ChecklistItemSerializer(items, many=True)
@@ -366,7 +366,7 @@ class ChecklistView(APIView):
 
 class ChecklistItemDetailView(APIView):
     """PATCH /api/checklist/<item_id>/"""
-    
+
     def patch(self, request, item_id):
         item = get_object_or_404(ChecklistItem, id=item_id)
         serializer = ChecklistItemSerializer(item, data=request.data, partial=True)
@@ -380,7 +380,7 @@ class ChecklistItemDetailView(APIView):
 
 class ReminderListView(APIView):
     """GET/POST /api/reminders/"""
-    
+
     def get(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
@@ -388,12 +388,12 @@ class ReminderListView(APIView):
                 {'error': 'user_id query parameter is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         profile = get_object_or_404(UserProfile, id=user_id)
         reminders = profile.reminders.filter(is_sent=False)
         serializer = ReminderSerializer(reminders, many=True)
         return Response(serializer.data)
-    
+
     def post(self, request):
         user_id = request.data.get('user_id')
         if not user_id:
@@ -401,7 +401,7 @@ class ReminderListView(APIView):
                 {'error': 'user_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         profile = get_object_or_404(UserProfile, id=user_id)
         serializer = ReminderSerializer(data=request.data)
         if serializer.is_valid():
@@ -412,7 +412,7 @@ class ReminderListView(APIView):
 
 class ReminderDetailView(APIView):
     """DELETE /api/reminders/<id>/"""
-    
+
     def delete(self, request, reminder_id):
         reminder = get_object_or_404(Reminder, id=reminder_id)
         reminder.delete()
@@ -431,16 +431,16 @@ urlpatterns = [
     # User Profile
     path('profile/create/', views.CreateProfileView.as_view(), name='create-profile'),
     path('profile/<uuid:user_id>/', views.ProfileDetailView.as_view(), name='profile-detail'),
-    
+
     # Tax Information
     path('tax/check/', views.TaxCheckView.as_view(), name='tax-check'),
     path('tax/explanation/', views.TaxExplanationView.as_view(), name='tax-explanation'),
     path('tax/rules/', views.TaxRulesView.as_view(), name='tax-rules'),
-    
+
     # Compliance Checklist
     path('checklist/', views.ChecklistView.as_view(), name='checklist'),
     path('checklist/<uuid:item_id>/', views.ChecklistItemDetailView.as_view(), name='checklist-item'),
-    
+
     # Reminders
     path('reminders/', views.ReminderListView.as_view(), name='reminders'),
     path('reminders/<uuid:reminder_id>/', views.ReminderDetailView.as_view(), name='reminder-detail'),
