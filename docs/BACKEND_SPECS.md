@@ -471,21 +471,23 @@ Create a management command or run in Django shell:
 from App.models import TaxRule
 from datetime import date
 
+# ============ TAX RULES FOR 2026 REFORMS ============
+
 # Personal Income Tax
 TaxRule.objects.create(
     name="Personal Income Tax (PIT)",
-    description="Tax on personal income from employment, business, or investments.\nApplies to all income earners in Nigeria.\nRates range from 7% to 24% based on income brackets.",
-    simplified_explanation="This is the main tax on your income. If you earn above ₦400,000 per year, you need to pay this tax. The more you earn, the higher percentage you pay.",
+    description="Tax on personal income from employment, business, or investments.\nApplies to all income earners in Nigeria.\nRates range from 7% to 24% based on income brackets.\n2026 Reform: First ₦800,000 is now tax-free (previously ₦300,000).",
+    simplified_explanation="This is the main tax on your income. If you earn above ₦800,000 per year, you need to pay this tax. The more you earn, the higher percentage you pay. Good news: The 2026 reform increased the tax-free threshold!",
     applies_to=["salary_earner", "freelancer", "small_business_owner"],
-    min_income_threshold=400000,
+    min_income_threshold=800000,
     rate_percentage=7.00,
     effective_date=date(2026, 1, 1),
 )
 
-# VAT
+# Value Added Tax
 TaxRule.objects.create(
     name="Value Added Tax (VAT)",
-    description="Tax on goods and services.\nApplies to businesses with annual turnover above ₦25 million.\nStandard rate is 7.5%.",
+    description="Tax on goods and services.\nApplies to businesses with annual turnover above ₦25 million.\nStandard rate is 7.5%.\nSome essential items are VAT-exempt.",
     simplified_explanation="If your business sells goods or services and makes more than ₦25 million per year, you need to register for VAT and charge 7.5% on your sales.",
     applies_to=["small_business_owner"],
     min_income_threshold=25000000,
@@ -496,14 +498,199 @@ TaxRule.objects.create(
 # Withholding Tax
 TaxRule.objects.create(
     name="Withholding Tax (WHT)",
-    description="Tax deducted at source from payments.\nApplies to freelancers and contractors.\nRates vary from 5% to 10% depending on service type.",
+    description="Tax deducted at source from payments.\nApplies to freelancers and contractors.\nRates vary from 5% to 10% depending on service type.\nCan be used as credit against final tax.",
     simplified_explanation="When clients pay you for services, they may deduct 5-10% as withholding tax and send it to the government. You can claim this as credit against your income tax.",
     applies_to=["freelancer"],
     min_income_threshold=0,
     rate_percentage=5.00,
     effective_date=date(2026, 1, 1),
 )
+
+# Company Income Tax (for small business owners who registered companies)
+TaxRule.objects.create(
+    name="Company Income Tax (CIT)",
+    description="Tax on company profits.\nSmall companies (turnover < ₦25m): 0% rate.\nMedium companies (₦25m-₦100m): 20% rate.\nLarge companies (> ₦100m): 30% rate.",
+    simplified_explanation="If you registered your business as a company, you pay tax on your profits. Small businesses with less than ₦25 million turnover pay 0% - that's great news for startups!",
+    applies_to=["small_business_owner"],
+    min_income_threshold=25000000,
+    rate_percentage=20.00,
+    effective_date=date(2026, 1, 1),
+)
+
+# PAYE (Pay As You Earn)
+TaxRule.objects.create(
+    name="Pay As You Earn (PAYE)",
+    description="Tax deducted from salary by employer.\nEmployer remits to tax authority monthly.\nApplies to all formal employment.\nEmployee receives net salary after deduction.",
+    simplified_explanation="If you work for a company, your employer automatically deducts tax from your salary and sends it to the government. You don't need to do anything - it's already handled!",
+    applies_to=["salary_earner"],
+    min_income_threshold=800000,
+    rate_percentage=7.00,
+    effective_date=date(2026, 1, 1),
+)
+
+# Tertiary Education Tax
+TaxRule.objects.create(
+    name="Tertiary Education Tax (TET)",
+    description="Tax to fund tertiary education.\nApplies to companies only.\nRate: 2.5% of assessable profits.\nDoes not apply to individuals.",
+    simplified_explanation="This is a 2.5% tax on company profits that goes to fund universities. Only applies if you registered your business as a company.",
+    applies_to=["small_business_owner"],
+    min_income_threshold=25000000,
+    rate_percentage=2.50,
+    effective_date=date(2026, 1, 1),
+)
+
+print("✅ Tax rules created successfully!")
 ```
+
+---
+
+## Enhanced Checklist Items
+
+Update the `_create_default_checklist` method in views.py with more detailed items:
+
+```python
+def _create_default_checklist(self, profile):
+    """Generate comprehensive checklist based on user type"""
+    
+    # Common items for everyone
+    common_items = [
+        {
+            "title": "Get your Tax Identification Number (TIN)",
+            "description": "Visit the nearest FIRS office or apply online at taxpromax.firs.gov.ng",
+            "priority": 1,
+            "order": 1
+        },
+        {
+            "title": "Gather all income documents",
+            "description": "Collect payslips, invoices, bank statements from Jan-Dec 2025",
+            "priority": 1,
+            "order": 2
+        },
+        {
+            "title": "Calculate your total annual income",
+            "description": "Add up all income sources: salary, freelance, investments, etc.",
+            "priority": 2,
+            "order": 3
+        },
+        {
+            "title": "Identify your tax-deductible expenses",
+            "description": "Pension contributions, NHF, life insurance premiums can reduce your tax",
+            "priority": 2,
+            "order": 4
+        },
+        {
+            "title": "Check the 2026 tax-free threshold",
+            "description": "First ₦800,000 is now exempt - calculate if you owe any tax",
+            "priority": 2,
+            "order": 5
+        },
+    ]
+    
+    # Salary earner specific
+    salary_items = [
+        {
+            "title": "Confirm PAYE deductions with employer",
+            "description": "Request your annual tax deduction certificate from HR",
+            "priority": 1,
+            "order": 6
+        },
+        {
+            "title": "File annual tax returns (if required)",
+            "description": "Due by March 31st if you have additional income sources",
+            "priority": 2,
+            "order": 7
+        },
+    ]
+    
+    # Freelancer specific
+    freelancer_items = [
+        {
+            "title": "Track all business expenses",
+            "description": "Keep receipts for equipment, internet, transport, workspace costs",
+            "priority": 1,
+            "order": 6
+        },
+        {
+            "title": "Set aside money for taxes",
+            "description": "Save 10-15% of each payment for tax obligations",
+            "priority": 1,
+            "order": 7
+        },
+        {
+            "title": "Collect WHT certificates from clients",
+            "description": "Request withholding tax certificates to claim credits",
+            "priority": 2,
+            "order": 8
+        },
+        {
+            "title": "File self-assessment tax return",
+            "description": "Due by March 31st - use Form A for individuals",
+            "priority": 1,
+            "order": 9
+        },
+    ]
+    
+    # Small business owner specific
+    business_items = [
+        {
+            "title": "Register your business for tax",
+            "description": "Register with FIRS if not already done",
+            "priority": 1,
+            "order": 6
+        },
+        {
+            "title": "Check if you need VAT registration",
+            "description": "Required if annual turnover exceeds ₦25 million",
+            "priority": 1,
+            "order": 7
+        },
+        {
+            "title": "Set up proper bookkeeping",
+            "description": "Use accounting software to track income and expenses",
+            "priority": 1,
+            "order": 8
+        },
+        {
+            "title": "File monthly VAT returns (if applicable)",
+            "description": "Due by 21st of following month",
+            "priority": 2,
+            "order": 9
+        },
+        {
+            "title": "File annual company tax return",
+            "description": "Due within 6 months of financial year end",
+            "priority": 1,
+            "order": 10
+        },
+    ]
+    
+    # Build checklist based on user type
+    checklist = common_items.copy()
+    
+    if profile.user_type == 'salary_earner':
+        checklist.extend(salary_items)
+    elif profile.user_type == 'freelancer':
+        checklist.extend(freelancer_items)
+    elif profile.user_type == 'small_business_owner':
+        checklist.extend(business_items)
+    
+    # Create all items in database
+    for item in checklist:
+        ChecklistItem.objects.create(user_profile=profile, **item)
+```
+
+---
+
+## Key Tax Deadlines (2026)
+
+Add this data for reminders:
+
+| Deadline | Description | Applies To |
+|----------|-------------|------------|
+| January 31 | Employer submits annual PAYE returns | Salary Earners |
+| March 31 | Individual self-assessment filing deadline | Freelancers, Business Owners |
+| Monthly 21st | VAT returns due | VAT-registered Businesses |
+| 6 months after year-end | Company tax return | Registered Companies |
 
 ---
 
