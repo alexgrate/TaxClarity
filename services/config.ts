@@ -11,21 +11,22 @@ const PROD_API_URL = 'https://your-production-api.com';
 // Toggle this based on your environment
 export const API_BASE_URL = __DEV__ ? DEV_API_URL : PROD_API_URL;
 
-// API Endpoints - Based on PRD specification
+// API Endpoints - Django REST Framework (trailing slashes required)
 // These should match exactly what the backend implements
 export const ENDPOINTS = {
-  // User Profile (PRD: /api/profile/...)
-  createProfile: '/api/profile/create',      // POST - Create user tax profile
-  getProfile: '/api/profile',                // GET - Retrieve user profile (add /{user_id})
+  // User Profile
+  createProfile: '/api/profile/create/',     // POST - Create user tax profile
+  getProfile: '/api/profile',                // GET - /api/profile/{user_id}/
   
-  // Tax Information (PRD: /api/tax/...)
-  checkTax: '/api/tax/check',                // POST - Check tax applicability
-  getTaxExplanation: '/api/tax/explanation', // GET - Get simplified tax explanation
+  // Tax Information
+  checkTax: '/api/tax/check/',               // POST - Check tax applicability
+  getTaxExplanation: '/api/tax/explanation/', // GET - Get simplified tax explanation
+  getTaxRules: '/api/tax/rules/',            // GET - Get all tax rules
   
-  // Compliance (PRD: /api/checklist)
-  getChecklist: '/api/checklist',            // GET - Get compliance checklist
-  updateChecklist: '/api/checklist',         // PATCH - Update checklist item
+  // Compliance Checklist
+  getChecklist: '/api/checklist/',           // GET - Get compliance checklist (requires ?user_id=)
+  updateChecklist: '/api/checklist',         // PATCH - /api/checklist/{item_id}/
   
-  // Additional endpoints (not in PRD but useful)
-  reminders: '/api/reminders',               // GET/POST - Reminders
+  // Reminders
+  reminders: '/api/reminders/',              // GET/POST - Reminders (requires ?user_id= for GET)
 };
