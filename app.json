@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "TaxClarity NG",
+    "slug": "taxclarity-ng",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "taxclaritying",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.taxclaritying.app"
+    },
+    "android": {
+      "package": "com.taxclaritying.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

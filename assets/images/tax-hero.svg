@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- T Letter -->
+  <g transform="translate(40, 80)">
+    <rect x="0" y="0" width="60" height="15" fill="#CC0000"/>
+    <rect x="20" y="15" width="20" height="60" fill="#CC0000"/>
+    <!-- 3D effect -->
+    <polygon points="60,0 70,10 70,25 60,15" fill="#990000"/>
+    <polygon points="40,75 50,85 50,25 40,15" fill="#990000"/>
+  </g>
+
+  <!-- A Letter -->
+  <g transform="translate(110, 80)">
+    <polygon points="30,0 60,75 48,75 40,55 20,55 12,75 0,75 30,0" fill="#CC0000"/>
+    <polygon points="30,25 38,45 22,45" fill="white"/>
+    <!-- 3D effect -->
+    <polygon points="60,75 70,85 38,10 30,0" fill="#990000"/>
+  </g>
+
+  <!-- X Letter -->
+  <g transform="translate(180, 80)">
+    <polygon points="0,0 15,0 30,30 45,0 60,0 38,40 60,75 45,75 30,45 15,75 0,75 22,40" fill="#CC0000"/>
+    <!-- 3D effect -->
+    <polygon points="60,0 70,10 48,50 70,85 60,75 38,40" fill="#990000"/>
+  </g>
+
+  <!-- Running figure -->
+  <g transform="translate(100, 20)">
+    <!-- Head -->
+    <circle cx="70" cy="15" r="12" fill="#E0E0E0"/>
+    <!-- Body -->
+    <ellipse cx="65" cy="40" rx="15" ry="20" fill="#E0E0E0"/>
+    <!-- Left arm back -->
+    <ellipse cx="45" cy="35" rx="5" ry="15" fill="#E0E0E0" transform="rotate(-30 45 35)"/>
+    <!-- Right arm forward -->
+    <ellipse cx="90" cy="30" rx="5" ry="18" fill="#E0E0E0" transform="rotate(40 90 30)"/>
+    <!-- Left leg back -->
+    <ellipse cx="50" cy="70" rx="5" ry="18" fill="#E0E0E0" transform="rotate(-20 50 70)"/>
+    <!-- Right leg forward -->
+    <ellipse cx="85" cy="60" rx="5" ry="20" fill="#E0E0E0" transform="rotate(30 85 60)"/>
+  </g>
+</svg>
