@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
@@ -7,6 +7,7 @@ import { Header, Button, RadioButton, Dropdown } from '@/components/ui';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { USER_TYPES, INCOME_RANGES, NIGERIAN_STATES } from '@/constants/data';
 import { useTaxClarityStore } from '@/store';
+import { taxClarityApi } from '@/services';
 
 interface FormData {
   userType: string;
@@ -17,6 +18,7 @@ interface FormData {
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const { setUserType, setIncomeRange, setState } = useTaxClarityStore();
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     control,
@@ -36,10 +38,36 @@ export default function ProfileSetupScreen() {
     value: state,
   }));
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
+    // Save to local state
     setUserType(data.userType);
     setIncomeRange(data.incomeRange);
     setState(data.state);
+
+    // Optional: Save to backend API
+    // Uncomment the code below when backend is ready
+    /*
+    setIsLoading(true);
+    try {
+      await taxClarityApi.createProfile({
+        userType: data.userType,
+        incomeRange: data.incomeRange,
+        state: data.state,
+      });
+      router.push('/next-steps');
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to save profile. Please try again.',
+        [{ text: 'OK' }]
+      );
+      console.error('Profile save error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+    */
+
+    // For now, just navigate (remove this when backend is ready)
     router.push('/next-steps');
   };
 
@@ -113,7 +141,8 @@ export default function ProfileSetupScreen() {
           <Button
             title="Get Started"
             onPress={handleSubmit(onSubmit)}
-            disabled={!isValid}
+            disabled={!isValid || isLoading}
+            loading={isLoading}
           />
         </View>
       </ScrollView>
