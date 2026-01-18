@@ -1,100 +1,99 @@
 import apiClient from './apiClient';
 import { ENDPOINTS } from './config';
 
-// Types for API responses (adjust based on your backend)
+// Types for API responses - Based on PRD requirements
 export interface UserProfile {
-  id: string;
-  userType: string;
-  incomeRange: string;
+  id?: string;
+  user_type: 'salary_earner' | 'freelancer' | 'small_business_owner';
+  income_range: string;
   state: string;
-  email?: string;
-  name?: string;
+  created_at?: string;
 }
 
-export interface TaxRule {
-  id: string;
-  title: string;
+export interface TaxCheckResult {
+  applicable: boolean;
+  tax_type: string;
   description: string;
-  applicableTo: string[];
-  incomeThreshold?: number;
+  rate?: number;
+}
+
+export interface TaxExplanation {
+  title: string;
+  summary: string;
+  details: string[];
+  exemptions?: string[];
 }
 
 export interface ChecklistItem {
   id: string;
   title: string;
+  description?: string;
   completed: boolean;
-  dueDate?: string;
+  due_date?: string;
 }
 
-export interface Reminder {
-  id: string;
-  title: string;
-  date: string;
-  completed: boolean;
-}
-
-// API Service functions
+// API Service functions - Matching PRD endpoints
 export const taxClarityApi = {
-  // ============ USER PROFILE ============
+  // ============ USER PROFILE (PRD: /api/profile/...) ============
   
   /**
-   * Get user profile
-   */
-  getProfile: async (): Promise<UserProfile> => {
-    const response = await apiClient.get(ENDPOINTS.userProfile);
-    return response.data;
-  },
-
-  /**
-   * Update user profile
-   */
-  updateProfile: async (profileData: Partial<UserProfile>): Promise<UserProfile> => {
-    const response = await apiClient.put(ENDPOINTS.updateProfile, profileData);
-    return response.data;
-  },
-
-  /**
-   * Create user profile (for new users)
+   * Create user tax profile
+   * PRD: POST /api/profile/create
    */
   createProfile: async (profileData: {
-    userType: string;
-    incomeRange: string;
+    user_type: string;
+    income_range: string;
     state: string;
   }): Promise<UserProfile> => {
-    const response = await apiClient.post(ENDPOINTS.userProfile, profileData);
-    return response.data;
-  },
-
-  // ============ TAX INFORMATION ============
-
-  /**
-   * Get tax rules based on user profile
-   */
-  getTaxRules: async (userType: string, incomeRange: string, state: string): Promise<TaxRule[]> => {
-    const response = await apiClient.get(ENDPOINTS.taxRules, {
-      params: { userType, incomeRange, state },
-    });
+    const response = await apiClient.post(ENDPOINTS.createProfile, profileData);
     return response.data;
   },
 
   /**
-   * Calculate tax based on income
+   * Get user profile by ID
+   * PRD: GET /api/profile/{user_id}
    */
-  calculateTax: async (income: number, userType: string): Promise<{ taxAmount: number; breakdown: any }> => {
-    const response = await apiClient.post(ENDPOINTS.taxCalculation, {
-      income,
-      userType,
+  getProfile: async (userId: string): Promise<UserProfile> => {
+    const response = await apiClient.get(`${ENDPOINTS.getProfile}/${userId}`);
+    return response.data;
+  },
+
+  // ============ TAX INFORMATION (PRD: /api/tax/...) ============
+
+  /**
+   * Check tax applicability based on user profile
+   * PRD: POST /api/tax/check
+   */
+  checkTaxApplicability: async (profileData: {
+    user_type: string;
+    income_range: string;
+    state: string;
+  }): Promise<TaxCheckResult[]> => {
+    const response = await apiClient.post(ENDPOINTS.checkTax, profileData);
+    return response.data;
+  },
+
+  /**
+   * Get simplified tax explanation
+   * PRD: GET /api/tax/explanation
+   */
+  getTaxExplanation: async (taxType?: string): Promise<TaxExplanation> => {
+    const response = await apiClient.get(ENDPOINTS.getTaxExplanation, {
+      params: taxType ? { tax_type: taxType } : {},
     });
     return response.data;
   },
 
-  // ============ COMPLIANCE CHECKLIST ============
+  // ============ COMPLIANCE CHECKLIST (PRD: /api/checklist) ============
 
   /**
    * Get compliance checklist
+   * PRD: GET /api/checklist
    */
-  getChecklist: async (): Promise<ChecklistItem[]> => {
-    const response = await apiClient.get(ENDPOINTS.complianceChecklist);
+  getChecklist: async (userId?: string): Promise<ChecklistItem[]> => {
+    const response = await apiClient.get(ENDPOINTS.getChecklist, {
+      params: userId ? { user_id: userId } : {},
+    });
     return response.data;
   },
 
@@ -108,29 +107,22 @@ export const taxClarityApi = {
     return response.data;
   },
 
-  // ============ REMINDERS ============
-
-  /**
-   * Get all reminders
-   */
-  getReminders: async (): Promise<Reminder[]> => {
-    const response = await apiClient.get(ENDPOINTS.reminders);
-    return response.data;
-  },
+  // ============ REMINDERS (Additional) ============
 
   /**
    * Create a reminder
    */
-  createReminder: async (reminder: { title: string; date: string }): Promise<Reminder> => {
-    const response = await apiClient.post(ENDPOINTS.createReminder, reminder);
+  createReminder: async (reminder: { title: string; date: string }): Promise<any> => {
+    const response = await apiClient.post(ENDPOINTS.reminders, reminder);
     return response.data;
   },
 
   /**
-   * Delete a reminder
+   * Get all reminders
    */
-  deleteReminder: async (reminderId: string): Promise<void> => {
-    await apiClient.delete(`${ENDPOINTS.reminders}/${reminderId}`);
+  getReminders: async (): Promise<any[]> => {
+    const response = await apiClient.get(ENDPOINTS.reminders);
+    return response.data;
   },
 };
 
